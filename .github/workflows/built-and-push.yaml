@@ -1,0 +1,70 @@
+name: build-and-push-services
+
+on:
+  push:
+    branches:
+      - staging
+      - production
+    paths:
+      - "App/Front-end/**"
+      - "App/task-service/**"
+      - "App/user-service/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set changed files
+        id: changes
+        run: |
+          echo "CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})" >> $GITHUB_ENV
+          echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+          if [ "${GITHUB_REF##*/}" = "staging" ]; then
+            echo "DOCKER_TAG=staging" >> $GITHUB_ENV
+          else
+            echo "DOCKER_TAG=prod" >> $GITHUB_ENV
+          fi
+
+      - name: Docker login
+        run: echo $DOCKER_TOKEN | docker login -u $DOCKER_USERNAME --password-stdin
+        env:
+          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+
+      # ===== Front-end =====
+      - name: Build & Push Front-end
+        if: contains(env.CHANGED_FILES, 'App/Front-end/')
+        run: |
+          cd App/Front-end
+          docker build -t kenhalo/frontend:${DOCKER_TAG} .
+          docker push kenhalo/frontend:${DOCKER_TAG}
+          if [ "${DOCKER_TAG}" = "prod" ]; then
+            docker tag kenhalo/frontend:prod kenhalo/frontend:latest
+            docker push kenhalo/frontend:latest
+          fi
+
+      # ===== Task Service =====
+      - name: Build & Push Task Service
+        if: contains(env.CHANGED_FILES, 'App/task-service/')
+        run: |
+          cd App/task-service
+          docker build -t kenhalo/task-service:${DOCKER_TAG} .
+          docker push kenhalo/task-service:${DOCKER_TAG}
+          if [ "${DOCKER_TAG}" = "prod" ]; then
+            docker tag kenhalo/task-service:prod kenhalo/task-service:latest
+            docker push kenhalo/task-service:latest
+          fi
+
+      # ===== User Service =====
+      - name: Build & Push User Service
+        if: contains(env.CHANGED_FILES, 'App/user-service/')
+        run: |
+          cd App/user-service
+          docker build -t kenhalo/user-service:${DOCKER_TAG} .
+          docker push kenhalo/user-service:${DOCKER_TAG}
+          if [ "${DOCKER_TAG}" = "prod" ]; then
+            docker tag kenhalo/user-service:prod kenhalo/user-service:latest
+            docker push kenhalo/user-service:latest
+          fi

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: task-manager
+data:
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  CORS_ORIGIN: "*"
+  JWT_EXPIRES_IN: "24h"
+  USER_SERVICE_URL: "http://user-service"
+  TASK_SERVICE_URL: "http://task-service"
